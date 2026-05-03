@@ -570,8 +570,43 @@ function colorPanel:AddToggle(id, opts)
     local obj = {
         Enabled = opts.Default == nil and false or opts.Default,
         Parent = self,
-        PickerFrame = nil
+        PickerFrame = nil,
+        Value = nil,
+        Transparency = 0,
+        OnChangedCallbacks = {}
     }
+
+    function obj:OnChanged(callback)
+        table.insert(self.OnChangedCallbacks, callback)
+    end
+
+    function obj:SetValueRGB(color, transparency)
+        colorR = math.floor(color.R * 255)
+        colorG = math.floor(color.G * 255)
+        colorB = math.floor(color.B * 255)
+        if transparency then
+            self.Transparency = transparency
+        end
+        self.Value = color
+        updateColor()
+        for _, cb in pairs(self.OnChangedCallbacks) do
+            cb()
+        end
+    end
+
+    function obj:SetValue(hsv, transparency)
+        self.Value = Color3.fromHSV(hsv.H, hsv.S, hsv.V)
+        if transparency then
+            self.Transparency = transparency
+        end
+        colorR = math.floor(self.Value.R * 255)
+        colorG = math.floor(self.Value.G * 255)
+        colorB = math.floor(self.Value.B * 255)
+        updateColor()
+        for _, cb in pairs(self.OnChangedCallbacks) do
+            cb()
+        end
+    end
 
     function obj:AddColorPicker(name, pickerOpts)
         pickerOpts = pickerOpts or {}
@@ -600,15 +635,25 @@ function colorPanel:AddToggle(id, opts)
         preview.BackgroundColor3 = pickerOpts.Default or selectedColor
         preview.BorderSizePixel = 0
         preview.Parent = frame
+        
+        colorPreview = preview
 
         colorR, colorG, colorB = math.floor((pickerOpts.Default or selectedColor).R * 255), math.floor((pickerOpts.Default or selectedColor).G * 255), math.floor((pickerOpts.Default or selectedColor).B * 255)
         selectedColor = pickerOpts.Default or selectedColor
+        obj.Value = selectedColor
+        if pickerOpts.Transparency then
+            obj.Transparency = pickerOpts.Transparency
+        end
 
         local function updateColor()
             selectedColor = Color3.fromRGB(colorR, colorG, colorB)
             preview.BackgroundColor3 = selectedColor
+            obj.Value = selectedColor
             if FOVring then
                 FOVring.Color = selectedColor
+            end
+            for _, cb in pairs(obj.OnChangedCallbacks) do
+                cb()
             end
         end
 
@@ -631,7 +676,7 @@ function colorPanel:AddToggle(id, opts)
 
         obj.Parent.NextY = obj.Parent.NextY + 160
         obj.PickerFrame = frame
-        return {Frame = frame, Preview = preview}
+        return obj
     end
 
     toggle.MouseButton1Click:Connect(function()
@@ -649,6 +694,11 @@ function colorPanel:AddToggle(id, opts)
     return obj
 end
 
+-- LIBRARY OPTIONS TABLE
+local Library = {
+    Options = {}
+}
+
 local Toggle = colorPanel:AddToggle("MyToggle", {
     Text = "This is a toggle",
     Default = true
@@ -656,8 +706,11 @@ local Toggle = colorPanel:AddToggle("MyToggle", {
 
 local ColorPicker = Toggle:AddColorPicker("ColorPicker1", {
     Default = Color3.new(1, 0, 0),
-    Title = "Some color"
+    Title = "Some color",
+    Transparency = 0
 })
+
+Library.Options.ColorPicker1 = ColorPicker
 
 -- ==========================================
 -- LÓGICA DO AIMBOT (INTEGRADA)
